@@ -1,0 +1,389 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened security primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() && request.auth.token.email == 'budhkarapara@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isFaculty() {
+      return isAdmin() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'faculty'
+      );
+    }
+
+    // Entity validation blueprints
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'role', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'displayName', 'role', 'department', 'createdAt', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+        data.role in ['admin', 'faculty', 'student'] &&
+        (!('department' in data) || (data.department is string && data.department.size() <= 80)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'email', 'addedBy', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'addedBy', 'createdAt']) &&
+        isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+        data.addedBy is string && data.addedBy.size() >= 1 && data.addedBy.size() <= 128 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidFacultyMember(data) {
+      return data.keys().hasAll(['id', 'createdBy', 'name', 'email', 'department', 'designation', 'isSample', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'createdBy', 'name', 'email', 'department', 'designation', 'isSample', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.createdBy) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+        data.department is string && data.department.size() >= 1 && data.department.size() <= 80 &&
+        data.designation is string && data.designation.size() >= 1 && data.designation.size() <= 80 &&
+        data.isSample is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidStudent(data) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'rollNumber', 'email', 'department', 'semester', 'biometricConsent', 'faceRegistered', 'isSample', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'name', 'rollNumber', 'email', 'department', 'semester', 'biometricConsent', 'consentTimestamp', 'faceRegistered', 'isSample', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.userId) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.rollNumber is string && data.rollNumber.size() >= 1 && data.rollNumber.size() <= 40 && data.rollNumber.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+        data.department is string && data.department.size() >= 1 && data.department.size() <= 80 &&
+        data.semester is string && data.semester.size() >= 1 && data.semester.size() <= 30 &&
+        data.biometricConsent is bool &&
+        (!('consentTimestamp' in data) || (data.consentTimestamp is string && data.consentTimestamp.size() <= 64)) &&
+        data.faceRegistered is bool &&
+        (!data.faceRegistered || data.biometricConsent == true) &&
+        data.isSample is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidFaceDescriptor(data) {
+      return data.keys().hasAll(['studentId', 'userId', 'studentName', 'rollNumber', 'department', 'semester', 'descriptor', 'sampleCount', 'biometricConsent', 'isSample', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['studentId', 'userId', 'studentName', 'rollNumber', 'department', 'semester', 'descriptor', 'sampleCount', 'biometricConsent', 'isSample', 'createdAt', 'updatedAt']) &&
+        isValidId(data.studentId) &&
+        isValidId(data.userId) &&
+        data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 120 &&
+        data.rollNumber is string && data.rollNumber.size() >= 1 && data.rollNumber.size() <= 40 &&
+        data.department is string && data.department.size() >= 1 && data.department.size() <= 80 &&
+        data.semester is string && data.semester.size() >= 1 && data.semester.size() <= 30 &&
+        data.descriptor is list && data.descriptor.size() == 128 && data.descriptor[0] is number &&
+        data.sampleCount is number && data.sampleCount >= 1 && data.sampleCount <= 20 &&
+        data.biometricConsent == true &&
+        data.isSample is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSubject(data) {
+      return data.keys().hasAll(['id', 'code', 'name', 'department', 'semester', 'facultyName', 'createdBy', 'isSample', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'code', 'name', 'department', 'semester', 'facultyName', 'createdBy', 'catalogScope', 'isSample', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.code is string && data.code.size() >= 1 && data.code.size() <= 24 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.department is string && data.department.size() >= 1 && data.department.size() <= 80 &&
+        data.semester is string && data.semester.size() >= 1 && data.semester.size() <= 30 &&
+        data.facultyName is string && data.facultyName.size() >= 1 && data.facultyName.size() <= 120 &&
+        isValidId(data.createdBy) &&
+        (!('catalogScope' in data) || (data.catalogScope is string && data.catalogScope.size() <= 32)) &&
+        data.isSample is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAttendanceRecord(data) {
+      return data.keys().hasAll(['id', 'studentId', 'studentUserId', 'studentName', 'rollNumber', 'department', 'semester', 'subjectId', 'subjectCode', 'subjectName', 'facultyUid', 'facultyName', 'date', 'time', 'status', 'confidenceDistance', 'thresholdUsed', 'verificationMethod', 'isSample', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'studentId', 'studentUserId', 'studentName', 'rollNumber', 'department', 'semester', 'subjectId', 'subjectCode', 'subjectName', 'facultyUid', 'facultyName', 'date', 'time', 'status', 'confidenceDistance', 'thresholdUsed', 'verificationMethod', 'isSample', 'createdAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.studentId) &&
+        isValidId(data.studentUserId) &&
+        data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 120 &&
+        data.rollNumber is string && data.rollNumber.size() >= 1 && data.rollNumber.size() <= 40 &&
+        data.department is string && data.department.size() >= 1 && data.department.size() <= 80 &&
+        data.semester is string && data.semester.size() >= 1 && data.semester.size() <= 30 &&
+        isValidId(data.subjectId) &&
+        data.subjectCode is string && data.subjectCode.size() >= 1 && data.subjectCode.size() <= 24 &&
+        data.subjectName is string && data.subjectName.size() >= 1 && data.subjectName.size() <= 120 &&
+        isValidId(data.facultyUid) &&
+        data.facultyName is string && data.facultyName.size() >= 1 && data.facultyName.size() <= 120 &&
+        data.date is string && data.date.size() == 10 && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+        data.time is string && data.time.size() >= 5 && data.time.size() <= 16 &&
+        data.status in ['Present', 'Late', 'Absent'] &&
+        data.confidenceDistance is number && data.confidenceDistance >= 0 && data.confidenceDistance <= 2.0 &&
+        data.thresholdUsed is number && data.thresholdUsed >= 0.2 && data.thresholdUsed <= 0.9 &&
+        data.verificationMethod in ['face_recognition', 'manual_demo'] &&
+        data.isSample is bool &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['id', 'facultyUid', 'facultyName', 'subjectId', 'subjectCode', 'subjectName', 'department', 'semester', 'date', 'threshold', 'status', 'recognizedCount', 'isSample', 'startedAt']) &&
+        data.keys().hasOnly(['id', 'facultyUid', 'facultyName', 'subjectId', 'subjectCode', 'subjectName', 'department', 'semester', 'date', 'threshold', 'status', 'recognizedCount', 'isSample', 'startedAt', 'endedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.facultyUid) &&
+        data.facultyName is string && data.facultyName.size() >= 1 && data.facultyName.size() <= 120 &&
+        isValidId(data.subjectId) &&
+        data.subjectCode is string && data.subjectCode.size() >= 1 && data.subjectCode.size() <= 24 &&
+        data.subjectName is string && data.subjectName.size() >= 1 && data.subjectName.size() <= 120 &&
+        data.department is string && data.department.size() >= 1 && data.department.size() <= 80 &&
+        data.semester is string && data.semester.size() >= 1 && data.semester.size() <= 30 &&
+        data.date is string && data.date.size() == 10 && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+        data.threshold is number && data.threshold >= 0.2 && data.threshold <= 0.9 &&
+        data.status in ['active', 'completed'] &&
+        data.recognizedCount is number && data.recognizedCount >= 0 && data.recognizedCount <= 10000 &&
+        data.isSample is bool &&
+        data.startedAt is timestamp &&
+        (!('endedAt' in data) || data.endedAt is timestamp);
+    }
+
+    // /users/{userId} - PII isolated
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(userId) && isSignedIn() &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == userId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            request.auth.uid == userId &&
+            incoming().email == request.auth.token.email &&
+            incoming().role == 'student'
+          )
+        );
+      allow update: if isValidId(userId) && isSignedIn() &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().email == existing().email &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            request.auth.uid == userId &&
+            incoming().role == existing().role &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'department', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // /admins/{userId}
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(userId) && isAdmin() &&
+        isValidAdminRecord(incoming()) &&
+        incoming().uid == userId &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(userId) && isBootstrappedAdmin();
+    }
+
+    // /faculty/{facultyId}
+    match /faculty/{facultyId} {
+      allow get: if isValidId(facultyId) && isSignedIn() && (isAdmin() || isFaculty() || existing().isSample == true);
+      allow list: if isSignedIn() && (isBootstrappedAdmin() || existing().isSample == true || existing().createdBy == request.auth.uid);
+      allow create: if isValidId(facultyId) && isAdmin() &&
+        isValidFacultyMember(incoming()) &&
+        incoming().id == facultyId &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(facultyId) && isAdmin() &&
+        isValidFacultyMember(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'email', 'department', 'designation', 'isSample', 'updatedAt']);
+      allow delete: if isValidId(facultyId) && isAdmin();
+    }
+
+    // /students/{studentId}
+    match /students/{studentId} {
+      allow get: if isValidId(studentId) && isSignedIn() && (
+        isAdmin() || isFaculty() || existing().userId == request.auth.uid || existing().isSample == true
+      );
+      allow list: if isSignedIn() && (
+        isBootstrappedAdmin() || existing().userId == request.auth.uid || existing().isSample == true
+      );
+      allow create: if isValidId(studentId) && isSignedIn() &&
+        isValidStudent(incoming()) &&
+        incoming().id == studentId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (
+          (isAdmin() && incoming().userId is string) ||
+          (incoming().userId == request.auth.uid && incoming().isSample == false)
+        );
+      allow update: if isValidId(studentId) && isSignedIn() &&
+        isValidStudent(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'rollNumber', 'email', 'department', 'semester', 'biometricConsent', 'consentTimestamp', 'faceRegistered', 'isSample', 'updatedAt'])) ||
+          (
+            existing().userId == request.auth.uid &&
+            incoming().isSample == existing().isSample &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'rollNumber', 'email', 'department', 'semester', 'biometricConsent', 'consentTimestamp', 'faceRegistered', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(studentId) && isAdmin();
+    }
+
+    // /faceDescriptors/{studentId}
+    match /faceDescriptors/{studentId} {
+      allow get: if isValidId(studentId) && isSignedIn() && (
+        isAdmin() || isFaculty() || existing().userId == request.auth.uid || existing().isSample == true
+      );
+      allow list: if isSignedIn() && (
+        isBootstrappedAdmin() || existing().userId == request.auth.uid || existing().isSample == true
+      );
+      allow create: if isValidId(studentId) && isSignedIn() &&
+        isValidFaceDescriptor(incoming()) &&
+        incoming().studentId == studentId &&
+        exists(/databases/$(database)/documents/students/$(studentId)) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (isAdmin() || (incoming().userId == request.auth.uid && incoming().isSample == false));
+      allow update: if isValidId(studentId) && isSignedIn() &&
+        isValidFaceDescriptor(incoming()) &&
+        incoming().studentId == existing().studentId &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['studentName', 'rollNumber', 'department', 'semester', 'descriptor', 'sampleCount', 'biometricConsent', 'isSample', 'updatedAt'])) ||
+          (existing().userId == request.auth.uid && incoming().isSample == existing().isSample && incoming().diff(existing()).affectedKeys().hasOnly(['studentName', 'rollNumber', 'department', 'semester', 'descriptor', 'sampleCount', 'biometricConsent', 'updatedAt']))
+        );
+      allow delete: if isValidId(studentId) && (isAdmin() || existing().userId == request.auth.uid);
+    }
+
+    // /subjects/{subjectId}
+    match /subjects/{subjectId} {
+      allow get: if isValidId(subjectId) && isSignedIn();
+      allow list: if isSignedIn() && (
+        isBootstrappedAdmin() || existing().createdBy == request.auth.uid || existing().isSample == true || existing().catalogScope == 'institution'
+      );
+      allow create: if isValidId(subjectId) && isAdmin() &&
+        isValidSubject(incoming()) &&
+        incoming().id == subjectId &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(subjectId) && isAdmin() &&
+        isValidSubject(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['code', 'name', 'department', 'semester', 'facultyName', 'catalogScope', 'isSample', 'updatedAt']);
+      allow delete: if isValidId(subjectId) && isAdmin();
+    }
+
+    // /attendance/{recordId} - id is studentId_subjectId_date for deduplication
+    match /attendance/{recordId} {
+      allow get: if isValidId(recordId) && isSignedIn() && (
+        isAdmin() || isFaculty() || existing().studentUserId == request.auth.uid || existing().isSample == true
+      );
+      allow list: if isSignedIn() && (
+        isBootstrappedAdmin() || existing().studentUserId == request.auth.uid || existing().facultyUid == request.auth.uid || existing().isSample == true
+      );
+      allow create: if isValidId(recordId) && isFaculty() &&
+        isValidAttendanceRecord(incoming()) &&
+        incoming().id == recordId &&
+        incoming().facultyUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        exists(/databases/$(database)/documents/students/$(incoming().studentId)) &&
+        exists(/databases/$(database)/documents/subjects/$(incoming().subjectId));
+      allow update: if isValidId(recordId) && isAdmin() &&
+        isValidAttendanceRecord(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().studentId == existing().studentId &&
+        incoming().subjectId == existing().subjectId &&
+        incoming().date == existing().date &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'time', 'confidenceDistance', 'thresholdUsed', 'verificationMethod']);
+      allow delete: if isValidId(recordId) && isAdmin();
+    }
+
+    // /sessions/{sessionId}
+    match /sessions/{sessionId} {
+      allow get: if isValidId(sessionId) && isSignedIn() && (
+        isAdmin() || existing().facultyUid == request.auth.uid || existing().isSample == true
+      );
+      allow list: if isSignedIn() && (
+        isBootstrappedAdmin() || existing().facultyUid == request.auth.uid || existing().isSample == true
+      );
+      allow create: if isValidId(sessionId) && isFaculty() &&
+        isValidSession(incoming()) &&
+        incoming().id == sessionId &&
+        incoming().facultyUid == request.auth.uid &&
+        (incoming().status == 'active' || (isAdmin() && incoming().isSample == true)) &&
+        incoming().startedAt == request.time &&
+        exists(/databases/$(database)/documents/subjects/$(incoming().subjectId));
+      allow update: if isValidId(sessionId) && isFaculty() &&
+        isValidSession(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().facultyUid == existing().facultyUid &&
+        incoming().startedAt == existing().startedAt &&
+        (isAdmin() || existing().status != 'completed') &&
+        (
+          isAdmin() ||
+          (
+            existing().facultyUid == request.auth.uid &&
+            (
+              incoming().diff(existing()).affectedKeys().hasOnly(['recognizedCount']) ||
+              (incoming().status == 'completed' && incoming().endedAt == request.time && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'recognizedCount', 'endedAt']))
+            )
+          )
+        );
+      allow delete: if isValidId(sessionId) && isAdmin();
+    }
+  }
+}

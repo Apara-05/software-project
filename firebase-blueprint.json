@@ -1,0 +1,535 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user account and assigned system role.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Authentication UID."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 200,
+          "description": "Verified account email address."
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "User full display name."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "faculty", "student"],
+          "description": "Authorized RBAC role."
+        },
+        "department": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Academic department."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": ["uid", "email", "displayName", "role", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted administrator membership document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "addedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "addedBy", "createdAt"]
+    },
+    "FacultyMember": {
+      "title": "FacultyMember",
+      "description": "Faculty profile managed by admin.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "department": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "designation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "createdBy", "name", "email", "department", "designation", "isSample", "createdAt", "updatedAt"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Registered student profile and biometric consent status.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "rollNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "department": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "semester": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "biometricConsent": {
+          "type": "boolean"
+        },
+        "consentTimestamp": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "faceRegistered": {
+          "type": "boolean"
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "name", "rollNumber", "email", "department", "semester", "biometricConsent", "faceRegistered", "isSample", "createdAt", "updatedAt"]
+    },
+    "FaceDescriptor": {
+      "title": "FaceDescriptor",
+      "description": "128-dimensional biometric face descriptor generated by face-api.js.",
+      "type": "object",
+      "properties": {
+        "studentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "rollNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "department": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "semester": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "descriptor": {
+          "type": "array",
+          "description": "128-element float array representing facial embedding."
+        },
+        "sampleCount": {
+          "type": "number"
+        },
+        "biometricConsent": {
+          "type": "boolean"
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["studentId", "userId", "studentName", "rollNumber", "department", "semester", "descriptor", "sampleCount", "biometricConsent", "isSample", "createdAt", "updatedAt"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "Academic course subject offered to a department and semester.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "department": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "semester": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "facultyName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "code", "name", "department", "semester", "facultyName", "createdBy", "isSample", "createdAt", "updatedAt"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Single verified attendance event keyed uniquely by student, subject, and date.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentUserId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "rollNumber": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "department": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "semester": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "subjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "subjectCode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24
+        },
+        "subjectName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "facultyUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "facultyName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "time": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 16
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Present", "Late", "Absent"]
+        },
+        "confidenceDistance": {
+          "type": "number"
+        },
+        "thresholdUsed": {
+          "type": "number"
+        },
+        "verificationMethod": {
+          "type": "string",
+          "enum": ["face_recognition", "manual_demo"]
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "studentId", "studentUserId", "studentName", "rollNumber", "department", "semester", "subjectId", "subjectCode", "subjectName", "facultyUid", "facultyName", "date", "time", "status", "confidenceDistance", "thresholdUsed", "verificationMethod", "isSample", "createdAt"]
+    },
+    "AttendanceSession": {
+      "title": "AttendanceSession",
+      "description": "Live faculty webcam recognition session log.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "facultyUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "facultyName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "subjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "subjectCode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24
+        },
+        "subjectName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "department": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "semester": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "threshold": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "completed"]
+        },
+        "recognizedCount": {
+          "type": "number"
+        },
+        "isSample": {
+          "type": "boolean"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "facultyUid", "facultyName", "subjectId", "subjectCode", "subjectName", "department", "semester", "date", "threshold", "status", "recognizedCount", "isSample", "startedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Authenticated user accounts and role mappings."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Trusted administrator access control records."
+    },
+    "/faculty/{facultyId}": {
+      "schema": { "$ref": "#/entities/FacultyMember" },
+      "description": "Faculty directory records managed by administrators."
+    },
+    "/students/{studentId}": {
+      "schema": { "$ref": "#/entities/Student" },
+      "description": "Student roster and biometric consent metadata."
+    },
+    "/faceDescriptors/{studentId}": {
+      "schema": { "$ref": "#/entities/FaceDescriptor" },
+      "description": "128-d face descriptor vectors isolated from student PII."
+    },
+    "/subjects/{subjectId}": {
+      "schema": { "$ref": "#/entities/Subject" },
+      "description": "Academic courses and assigned faculty."
+    },
+    "/attendance/{recordId}": {
+      "schema": { "$ref": "#/entities/AttendanceRecord" },
+      "description": "Attendance logs keyed by studentId_subjectId_date."
+    },
+    "/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/AttendanceSession" },
+      "description": "Faculty live webcam attendance sessions."
+    }
+  }
+}
